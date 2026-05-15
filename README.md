@@ -1,36 +1,87 @@
-# wilty-analysis
-This is a Jupyter notebook and associated csvs used in analysis of the UK television show "Would I Lie to You?". 
+<!-- PROJECT LOGO -->
+<br />
+<p align="center">
+  <a>
+    <img src="https://github.com/gerryc-0/WILTY-QML/blob/main/WILTY_project_image.png" 
+         alt="WILTY Icon" width="400">
+  </a>
 
-## Files
-**seasons.csv** is the raw data that details every single statement and the opposing candidates' verdict.
-**winners.csv** details the winner of each episode.
-**contestants.csv** details every contestant in every episode and their various statistics and awards.
-**players.csv** details every player and their all-time statistics and awards.
-**get_season.ipynb** takes in seasons.csv and winners.csv to create contestants.csv, players.csv, and various other graphs.
+</p>
 
-## Notes
+# WILTY Predicting Panel Accuracy: Classical vs Quantum ML
 
-* Only Home Truths and Quick-Fire Lies are measured in seasons.csv.
-* There are three "dummy lies" in seasons.csv. These are Chris Tarrant in 06x01, Claude Littner in 11x08, and Deborah Frances-White in 15x09. These statements do not actually exist in the show - they were added because in the episode, their team did not have a single statement. This messes up the code I have and I was too lazy to fix it. I don't think this changes the numbers substantially. 
-* Lee Mack actually has one less appearance than David Mitchell in the show as there is an episode where Greg Davies takes his place - I've just pretended that Davies _was_ Mack in this episode. Again, the code breaks if there's another captain, so I've just handwaved it away. This also means that Davies has one less appearance than reality.
-* The Children in Need special isn't in seasons.csv. I just couldn't find it anywhere online to watch.
+Predicting whether the Would I Lie To You? panel correctly identifies a lie or the truth. A Classical vs Quantum ML comparison across logistic regression, SVM, KNN, random forest, and XGBoost baselines, variational quantum classifiers, and a quantum kernel SVM, benchmarked from noiseless simulation through to real IBM quantum computers.
 
-## Calculations
+**Module:** COMP47950: Quantum Machine Learning
 
-Offensive Rating (OR) and Defensive Rating (DR) are a straightforward percentage calculation, multiplied by 9 (to make it a cleaner number). If the contestant was never on defense (i.e, they did not make a statement) in the episode, they default to 3.6 DR.  Total Rating (TR) is the sum of OR and DR. 
+---
 
-There is an intermediate "Modified Offensive Rating" (MOR) and "Modified Defensive Rating" (MDR). MOR is 1 * OR if the contestant was on offense against more than 3 statements, 0.75 * OR if the contestant was on offense against 2 statements, or 0.5 * OR if they were on offense against less than 2 statements. 
+## Overview
 
-MDR is 1 * DR if the contestant made more than 1 statement, and 0.8 * DR if the contestant made 1 or less. 
+This project benchmarks classical and quantum machine learning pipelines against the same binary classification task: predicting whether the *Would I Lie To You?* (WILTY) panel correctly identifies a lie or the truth, using only player history and game-context features.
 
-To determine the Relative Offensive Rating (ROR) and the Relative Defensive Rating (RDR), a Team Offensive Rating (TOR) and a Team Defensive Rating (TDR) are first calculated. This is the average of the minimum rating and the median rating. I've chosen the mean of the minimum and the median rather than just the median as there are only 3 contestants in a team - this essentially means the Team rating is only dependent on the weakest two contestants on the team. The ROR and RDR are just the MOR and MDR minus the TOR and TDR. 
+Three pipelines are compared end-to-end:
 
-### Award Calculations
+| Pipeline | Description |
+|---|---|
+| **Classical** | Five models (Logistic Regression, SVM, KNN, Random Forest, XGBoost) with grid-search tuning and filter-based feature selection |
+| **Simulated QML** | Variational Quantum Classifiers (VQC) with multiple ansatz configurations + a Quantum Kernel SVM (QSVM), trained via noiseless statevector simulation |
+| **Hardware QML** | Trained VQC weights deployed for inference on a real IBM quantum device (`ibm_fez`), shot-based |
 
-Team MVP (TMVP) is given to the contestant on each team with the best TR. In case of a tie, this defaults to the first index (i.e, usually the captains). Episode MVP (EMVP) is given to the TMVP on the winning team as per winners.csv. In case of a tie, the TMVP with the greater TR is given the EMVP. 
+---
 
-Offensive Player of the Episode (OPOE) is given to the contestant on each episode with the best ROR. In case of a tie, this is given to the contestant with the best OR. In case of a further tie, this is given to the contestant with the best TR. ROR is first priority here instead of OR (unlike defense as you will see below), as offense is more of a team effort than defense. As such, contestants that break with their team and get it right are rewarded more than contestants that go with their teams and get lucky. 
+## Key Methods
 
-Defensive Player of the Episode (DPOE) is given to the contestant on each episode with the best MDR. In case of a tie, this is given to the contestant with the best DR. MDR is used here to not punish contestants that have more than one statement in one episode. A contestant that has two statements and convinces 3/3 people in the first statement and 2/3 in the second statement has provided the team 2 points and should be considered more valuable than a contestant that only had one statement and convinced 3/3 people, so MDR is used. 
+### Classical Baseline
+- Feature engineering on player history, opponent detection rates, and episode context
+- Aggregated feature importance ranking across Random Forest, Logistic Regression, and SVM to select top-5 features
+- Final model: SVM (`RBF` kernel)
 
-Offensive Player of the Season (OPOS) is given to the OPOE on each season with the best ROR. This means that the contestant with the best offensive performance relative to their team gets the award. Similarly, Defensive Player of the Season (DPOS) is given to the DPOE with the best RDR. 
+### Quantum Models
+- **Encoding:** Angle encoding (ZZFeatureMap) over 5 qubits corresponding to the top-5 classical features
+- **VQC configurations:** EfficientSU2 ansatz (4/6/8 layers), custom data-motivated ansatz with heavier entanglement between qubits 0–1 (`player_fool_rate` × `opponent_avg_detection_rate`), and alternative feature set experiments
+- **QSVM:** Quantum kernel SVM trained with COBYLA optimiser on 100 training samples
+- **Optimiser:** COBYLA (gradient-free, suitable for noisy settings)
+- **Training:** Noiseless statevector simulation; hardware run is inference-only
+
+### Hardware Inference
+- Executed on IBM quantum hardware via the IBM Quantum free tier
+- Shot-based measurement (1024 shots per sample)
+- Compared against noiseless simulation to quantify decoherence and gate-error impact
+
+---
+
+## Results Summary
+
+| Model | Test Accuracy | Macro F1 |
+|---|---|---|
+| Majority baseline | 0.562 | 0.360 |
+| SVM RBF (best classical) | 0.615 | 0.549 |
+| VQC best noiseless (angle + EfficientSU2, 4L) | 0.630 | n/a |
+| VQC retrained (150 iter) | 0.555 | 0.523 |
+| QSVM COBYLA (100 samples) | 0.622 | 0.610 |
+| VQC hardware (`ibm_fez`) | 0.562 | 0.360 |
+
+> **Note:** The hardware VQC collapsed to majority-class prediction. Accuarcy score masked this, macro-f1 score tells the truth. The QSVM matched the classical SVM on accuracy and exceeded it on f1.
+
+---
+
+## Setup
+
+```bash
+pip install qiskit qiskit-machine-learning scikit-learn pandas numpy matplotlib
+```
+
+Tested with:
+- Python 3.10+
+- Qiskit 1.x
+- qiskit-machine-learning 0.7.x
+- scikit-learn 1.3+
+
+To reproduce hardware results you will need an [IBM Quantum](https://quantum.ibm.com/) account and API token.
+
+---
+
+## Acknowledgements
+
+Dataset sourced from the open WILTY dataset repository. Project completed as part of COMP47950 Quantum Machine Learning.
