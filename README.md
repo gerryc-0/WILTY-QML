@@ -10,7 +10,7 @@
 
 # WILTY Predicting Panel Accuracy: Classical vs Quantum ML
 
-Predicting whether the Would I Lie To You? panel correctly identifies a lie or the truth. A Classical vs Quantum ML comparison across logistic regression, SVM, KNN, random forest, and XGBoost baselines, variational quantum classifiers, and a quantum kernel SVM, benchmarked from noiseless simulation through to real IBM quantum computers.
+Predicting whether the panel on the BBC comedy series *Would I Lie To You?* correctly identifies a lie or the truth. A Classical vs Quantum ML comparison across logistic regression, SVM, KNN, random forest, and XGBoost baselines, variational quantum classifiers, and a quantum kernel SVM, benchmarked from noiseless simulation through to real IBM quantum computers.
 
 **Module:** COMP47950: Quantum Machine Learning
 
